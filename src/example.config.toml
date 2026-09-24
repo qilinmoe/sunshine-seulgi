@@ -1,0 +1,17 @@
+[discord.bot]
+token = "your-token-here"
+id = 1234567890
+
+[discord.server]
+id = 1234567890
+allowed_channels = [1234567890, 9876543210]
+
+[lavalink]
+host = "your-lavalink-host"
+pass = "your-lavalink-pass"
+
+[x_replace]
+url = "https://fixupx.com"
+
+[deezer]
+url = "https://api.deezer.com"
