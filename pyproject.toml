@@ -1,0 +1,10 @@
+[project]
+name = "sunshine-seulgi"
+version = "0.1.0"
+description = "🎵| Command-less discord music bot"
+readme = "readme.md"
+authors = [
+    { name = "nana", email = "135635847+qilinmoe@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = []
