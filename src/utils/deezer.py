@@ -2,7 +2,7 @@ import os, httpx, logging
 
 from src.models.deezer import AlbumInfo, PlaylistInfo, TrackInfo, TracklistInfo
 
-logger = logging.getLogger("hikari")
+logger = logging.getLogger("deezer")
 
 async def get_playlist_by_id(client: httpx.AsyncClient, id: int) -> PlaylistInfo|None:
     response = await client.get(f"{os.getenv("deezer_url")}/playlist/{id}")
