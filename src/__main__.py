@@ -47,8 +47,47 @@ async def guild_message_create_response(event: hikari.GuildMessageCreateEvent) -
             await event.message.respond(new_match, reply=event.message_id, mentions_reply=True)
         return
 
+    match_dz = re.search(re.compile(str(os.getenv("deezer_regex"))), content_clean)
+    if match_dz:
+        async with bot.rest.trigger_typing(event.channel_id):
+            dz_link = match_dz.group(0)
+            result = await get_result_by_url(bot.http, dz_link)
+            if not result:
+                embed = build_unknown_embed()
+                await event.message.respond(embed=embed, reply=event.message_id, mentions_reply=True)
+                return
+
+        match result.type:
+            case "track":
+                embed = await build_track_embed(bot.http, result)
+            case "album":
+                embed = await build_album_embed(bot.http, result)
+            case "playlist":
+                embed = await build_playlist_embed(bot.http, result)
+
+        await event.message.respond(embed=embed, reply=event.message_id, mentions_reply=True)
+
     if me.id in event.message.user_mentions_ids: # type: ignore
-        await event.message.respond("Pong!", reply=event.message_id, mentions_reply=True)
+        async with bot.rest.trigger_typing(event.channel_id):
+            parts = content_clean.split(" ")
+            command = parts[0]
+            args = parts[1:]
+            match command:
+                case "search":
+                    # TODO: Paginated results + Play from results.
+                    query = " ".join(args)
+                    result = await get_tracklist_by_query(bot.http, query)
+                    if not result:
+                        embed = build_unknown_embed()
+                        await event.message.respond(embed=embed, reply=event.message_id, mentions_reply=True)
+                        return
+
+                    await event.message.respond(f"> [WIP!]\n> TODO: Paginated results\n\nSearched Deezer for: `{query}`; Found: {result.total}!",
+                        attachment=hikari.files.Bytes(result.model_dump_json(indent=4, exclude_none=True), "info.json"),
+                        reply=event.message_id,
+                        mentions_reply=True
+                    )
+                    return
         return
 
 if __name__ == "__main__":
