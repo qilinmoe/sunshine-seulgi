@@ -216,10 +216,11 @@ class AlbumFull(HasUpc, HasLink, HasShare, HasListMetadata, HasReleaseDate, HasE
 
 class TracklistInfo(DeezerModel, Generic[T]):
     """GET /[album, playlist]/{id}/tracks & /search/*"""
-    data: List[T]
-    total: int
     checksum: str | None = None
+    data: List[T]
     next: str | None = None # present when another page exists after this one
+    total: int
+    type: Literal["tracklist"] = "tracklist"
 
 class PlaylistFull(HasListMetadata, HasLink, HasShare, HasPictures, DeezerModel):
     """GET /playlist/{id}"""

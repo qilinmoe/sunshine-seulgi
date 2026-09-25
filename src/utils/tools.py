@@ -1,13 +1,14 @@
 import io, httpx, logging
 logger = logging.getLogger("tools")
+logger.setLevel(logging.DEBUG)
 
 from PIL import Image
 
 async def color_average(client: httpx.AsyncClient, url: str) -> tuple[int, int, int]:
     response = await client.get(url)
     if not response.is_success:
-        logger.error("[-] Failed to get image to build embed!")
-        logger.debug(f"[#] Code: {response.status_code} | URL: {url}")
+        logger.error("Failed to get image to build embed!")
+        logger.debug("Code: %s | URL: %s", response.status_code, url)
         return (254, 243, 139)
     data = response.read()
     image = Image.open(io.BytesIO(data)).convert("RGB")
