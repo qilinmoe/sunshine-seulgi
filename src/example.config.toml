@@ -12,6 +12,8 @@ pass = "your-lavalink-pass"
 
 [x_replace]
 url = "https://fixupx.com"
+regex = 'https?://(?:www\.)?x\.com(?:/[^\s]*)?'
 
 [deezer]
 url = "https://api.deezer.com"
+regex = '^https://(?:www|link)\.deezer\.com/\S+'
