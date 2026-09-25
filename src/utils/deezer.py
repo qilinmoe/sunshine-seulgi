@@ -1,35 +1,34 @@
 import os, httpx, logging
-
-from src.models.deezer import AlbumInfo, PlaylistInfo, TrackInfo, TracklistInfo
-
 logger = logging.getLogger("deezer")
 
-async def get_playlist_by_id(client: httpx.AsyncClient, id: int) -> PlaylistInfo|None:
+from src.models.deezer import AlbumFull, PlaylistFull, TrackFull, TracklistInfo
+
+async def get_playlist_by_id(client: httpx.AsyncClient, id: int) -> PlaylistFull|None:
     response = await client.get(f"{os.getenv("deezer_url")}/playlist/{id}")
     if not response.is_success:
         logger.error("Failed to get playlist with id %s!", id)
         logger.debug("Response code: %s", response.status_code)
         return
 
-    return PlaylistInfo.model_validate(response.json())
+    return PlaylistFull.model_validate(response.json())
 
-async def get_album_by_id(client: httpx.AsyncClient, id: int) -> AlbumInfo|None:
+async def get_album_by_id(client: httpx.AsyncClient, id: int) -> AlbumFull|None:
     response = await client.get(f"{os.getenv("deezer_url")}/album/{id}")
     if not response.is_success:
         logger.error(f"Failed to get album with id %s!", id)
         logger.debug("Response code: %s", response.status_code)
         return
 
-    return AlbumInfo.model_validate(response.json())
+    return AlbumFull.model_validate(response.json())
 
-async def get_track_by_id(client: httpx.AsyncClient, id: int) -> TrackInfo|None:
+async def get_track_by_id(client: httpx.AsyncClient, id: int) -> TrackFull|None:
     response = await client.get(f"{os.getenv("deezer_url")}/track/{id}")
     if not response.is_success:
         logger.error(f"Failed to get track with id %s!", id)
         logger.debug("Response code: %s", response.status_code)
         return
 
-    return TrackInfo.model_validate(response.json())
+    return TrackFull.model_validate(response.json())
 
 async def get_tracklist_by_url(client: httpx.AsyncClient, url: str) -> TracklistInfo|None:
     response = await client.get(url)
@@ -40,7 +39,7 @@ async def get_tracklist_by_url(client: httpx.AsyncClient, url: str) -> Tracklist
 
     return TracklistInfo.model_validate(response.json())
 
-async def get_track_by_query(client: httpx.AsyncClient, query: str) -> TracklistInfo|None:
+async def get_tracklist_by_query(client: httpx.AsyncClient, query: str) -> TracklistInfo|None:
     response = await client.get(f"{os.getenv("deezer_url")}/search",
         params={
             "q": query,
@@ -54,7 +53,7 @@ async def get_track_by_query(client: httpx.AsyncClient, query: str) -> Tracklist
 
     return TracklistInfo.model_validate(response.json())
 
-async def get_result_by_url(client: httpx.AsyncClient, url: str) -> TrackInfo|AlbumInfo|PlaylistInfo|None:
+async def get_result_by_url(client: httpx.AsyncClient, url: str) -> TrackFull|AlbumFull|PlaylistFull|None:
     if "/s/" in url:
         response = await client.get(url, follow_redirects=True) # By using follow_redirects, the special sharing links work (because they redirect to the normal links).
         url = str(response.url).split("?")[0]

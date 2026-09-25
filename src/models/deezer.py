@@ -1,7 +1,9 @@
 from __future__ import annotations
-from datetime import date, datetime
+from typing import List, Literal, Generic, TypeVar
 from enum import IntEnum
-from pydantic import BaseModel, ConfigDict, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
+
+T = TypeVar("T")
 
 class ExplicitContent(IntEnum):
     NOT_EXPLICIT = 0
@@ -13,137 +15,233 @@ class ExplicitContent(IntEnum):
 class DeezerModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-class BaseArtistInfo(DeezerModel):
-    id: int
-    name: str
-    tracklist: HttpUrl
+def unwrap_data(value):
+    """Unwraps collections that use {"data": [...] ...}"""
+    if isinstance(value, dict) and "data" in value:
+        return value["data"]
+    return value
 
-class ArtistInfo(BaseArtistInfo):
-    link: HttpUrl | None = None # /artist and /track exclusive
-    share: HttpUrl | None = None # /artist and /track exclusive
-    picture: HttpUrl
-    picture_small: HttpUrl
-    picture_medium: HttpUrl
-    picture_big: HttpUrl
-    picture_xl: HttpUrl
-    nb_album: int | None = None # /artist exclusive
-    nb_fan: int | None = None # /artist exclusive
-    radio: bool | None = None # Not in album.artist
-    role: str | None = None # /track exclusive
+# Generic -----
 
 class GenreInfo(DeezerModel):
     id: int
     name: str
-    picture: HttpUrl
+    picture: str
+    type: Literal["genre"] = "genre"
 
-class BaseAlbumInfo(DeezerModel):
+class CreatorInfo(DeezerModel):
     id: int
-    title: str
-    cover: HttpUrl
-    cover_small: HttpUrl
-    cover_medium: HttpUrl
-    cover_big: HttpUrl
-    cover_xl: HttpUrl
-    md5_image: str
-    tracklist: HttpUrl
+    name: str
+    tracklist: str
+    type: Literal["user"] = "user"
 
-class AlbumInfo(BaseAlbumInfo):
-    upc: str # Number as str
-    link: HttpUrl
-    share: HttpUrl
-    genre_id: int
-    genres: list[GenreInfo]
-    label: str
-    nb_tracks: int
-    duration: int # Seconds
-    fans: int
-    release_date: date # yyyy-mm-dd
-    record_type: str
-    available: bool
+class HasLink(DeezerModel):
+    link: str
+
+class HasShare(DeezerModel):
+    share: str
+
+class HasRadio(DeezerModel):
+    radio: bool
+
+class HasPictures(DeezerModel):
+    picture: str
+    picture_small: str
+    picture_medium: str
+    picture_big: str
+    picture_xl: str
+
+class HasRole(DeezerModel):
+    role: str
+
+class HasUpc(DeezerModel):
+    upc: str
+
+class HasReleaseDate(DeezerModel):
+    release_date: str
+
+class HasIsrc(DeezerModel):
+    isrc: str
+
+class HasTimeAdd(DeezerModel):
+    time_add: int
+
+class HasTrackIndex(DeezerModel):
+    track_position: int
+    disk_number: int
+
+class HasAvailableCountries(DeezerModel):
+    available_countries: List[str]
+
+class HasAudioFeatures(DeezerModel):
+    bpm: int
+    gain: float
+
+class HasExplicitInfo(DeezerModel):
     explicit_lyrics: bool
     explicit_content_lyrics: ExplicitContent
     explicit_content_cover: ExplicitContent
-    contributors: list[ArtistInfo]
-    artist: ArtistInfo
-    tracks: list[AlbumTrackInfo] | None = None # /album exclusive
 
-    @field_validator("tracks", "genres", mode="before")
-    @classmethod
-    def unwrap_data(cls, value):
-        """Flattens tracks and genres for the sake of simplicity."""
-        if isinstance(value, dict) and "data" in value:
-            return value["data"]
-        return value
+class HasListMetadata(DeezerModel):
+    nb_tracks: int
+    fans: int
 
-class TracklistInfo(DeezerModel):
-    data: list[AlbumTrackInfo]
-    total: int
-    next: HttpUrl | None = None # /search exclusive
+# Artist -----
 
-class BaseTrackInfo(DeezerModel):
+class ArtistBase(DeezerModel):
+    id: int
+    name: str
+    tracklist: str
+    type: Literal["artist"] = "artist"
+
+class AlbumTrackArtist(ArtistBase):
+    """album.track.artist"""
+    pass
+
+class AlbumArtist(HasPictures, ArtistBase):
+    """album.artist"""
+    pass
+
+class PlaylistTrackArtist(HasLink, ArtistBase):
+    """playlist.track.artist"""
+    pass
+
+class PictureTracklistArtist(HasLink, HasPictures, ArtistBase):
+    """playlist.tracklist.data.artist / search.artist"""
+    pass
+
+class TrackArtist(HasRadio, HasShare, HasLink, HasPictures, ArtistBase):
+    """track.artist"""
+    pass
+
+class ContributorArtist(HasRole, TrackArtist):
+    """track.contributors"""
+    pass
+
+# Album -----
+
+class AlbumBase(DeezerModel):
+    id: int
+    title: str
+    cover: str
+    cover_small: str
+    cover_medium: str
+    cover_big: str
+    cover_xl: str
+    md5_image: str
+    tracklist: str
+    type: Literal["album"] = "album"
+
+class TrackAlbum(HasLink, HasReleaseDate, AlbumBase):
+    """track.album"""
+    pass
+
+class AlbumTrackAlbum(AlbumBase):
+    """album.track.album"""
+    pass
+
+class PlaylistTrackAlbum(HasUpc, AlbumBase):
+    """playlist.track.album"""
+    pass
+
+# Tracks -----
+
+class TrackBase(HasExplicitInfo, DeezerModel):
     id: int
     readable: bool
     title: str
     title_short: str
-    title_version: str | None = None # Sometimes absent from /search
-    isrc: str | None = None # /track and /tracklist exclusive
-    link: HttpUrl
-    share: HttpUrl | None = None # /track exclusive
+    title_version: str
+    link: str
     duration: int
-    track_position: int | None = None # /track and /tracklist exclusive
-    disk_number: int | None = None # /track and /tracklist exclusive
     rank: int
-    release_date: date | None = None # YYYY-MM-DD | /track exclusive
-    explicit_lyrics: bool
-    explicit_content_lyrics: ExplicitContent
-    explicit_content_cover: ExplicitContent
-    preview: HttpUrl
-    bpm: int | None = None # /track exclusive
-    gain: float | None = None # /track exclusive
-    available_countries: list[str] | None = None # /track exclusive
-    contributors: list[ArtistInfo] | None = None # /track exclusive
+    preview: str
     md5_image: str
-    time_add: int | None = None # Unix time | /playlist exclusive
-    track_token: str | None = None # /track exclusive
-    artist: ArtistInfo | BaseArtistInfo
+    type: Literal["track"] = "track"
 
-class AlbumTrackInfo(BaseTrackInfo):
-    pass
+class SearchTrack(HasIsrc, TrackBase):
+    """GET /search/*"""
+    artist: PictureTracklistArtist
+    album: AlbumTrackAlbum
 
-class TrackInfo(BaseTrackInfo):
-    album: AlbumInfo | BaseAlbumInfo | None = None # Not in tracklist.data.*
+class AlbumTrack(TrackBase):
+    """album.track"""
+    artist: AlbumTrackArtist
+    album: AlbumTrackAlbum
 
-class PlaylistInfo(DeezerModel):
+class PlaylistTrack(HasIsrc, HasTimeAdd, TrackBase):
+    """playlist.track"""
+    artist: PlaylistTrackArtist
+    album: PlaylistTrackAlbum
+
+class PlaylistTracklistTrack(HasIsrc, HasTimeAdd, TrackBase):
+    """GET /playlist/{id}/tracks"""
+    artist: PictureTracklistArtist
+    album: PlaylistTrackAlbum
+
+class AlbumTracklistTrack(HasIsrc, HasTrackIndex, TrackBase):
+    """GET /album/{id}/tracks"""
+    artist: ArtistBase
+
+# Full -----
+
+class ArtistFull(TrackArtist):
+    """GET /artist/{id}"""
+    nb_album: int
+    nb_fan: int
+
+class TrackFull(HasIsrc, HasShare, HasTrackIndex, HasReleaseDate, HasAudioFeatures, HasAvailableCountries, TrackBase):
+    """GET /track/{id}"""
+    contributors: List[ContributorArtist]
+    track_token: str
+    artist: TrackArtist
+    album: TrackAlbum
+
+class AlbumFull(HasUpc, HasLink, HasShare, HasListMetadata, HasReleaseDate, HasExplicitInfo, AlbumBase):
+    """GET /album/{id}"""
+    genre_id: int
+    genres: List[GenreInfo]
+    label: str
+    duration: int
+    record_type: str
+    available: bool
+    contributors: List[ContributorArtist]
+    artist: AlbumArtist
+    tracks: List[AlbumTrack]
+
+    @field_validator("tracks", "genres", mode="before")
+    @classmethod
+    def _unwrap(cls, value):
+        return unwrap_data(value)
+
+class TracklistInfo(DeezerModel, Generic[T]):
+    """GET /[album, playlist]/{id}/tracks & /search/*"""
+    data: List[T]
+    total: int
+    checksum: str | None = None
+    next: str | None = None # present when another page exists after this one
+
+class PlaylistFull(HasListMetadata, HasLink, HasShare, HasPictures, DeezerModel):
+    """GET /playlist/{id}"""
     id: int
     title: str
     description: str
-    duration: int # Seconds
+    duration: int
     public: bool
     is_loved_track: bool
     collaborative: bool
-    nb_tracks: int
-    fans: int
-    link: HttpUrl
-    share: HttpUrl
-    picture: HttpUrl
-    picture_small: HttpUrl
-    picture_medium: HttpUrl
-    picture_big: HttpUrl
-    picture_xl: HttpUrl
     checksum: str
-    tracklist: HttpUrl
-    creation_date: datetime # YYYY-MM-DD hh:mm:ss
-    add_date: datetime # YYYY-MM-DD hh:mm:ss
-    mod_date: datetime # YYYY-MM-DD hh:mm:ss
+    tracklist: str
+    creation_date: str
+    add_date: str
+    mod_date: str
     md5_image: str
     picture_type: str
-    creator: BaseArtistInfo
-    tracks: list[TrackInfo]
+    creator: CreatorInfo
+    type: Literal["playlist"] = "playlist"
+    tracks: List[PlaylistTrack]
 
     @field_validator("tracks", mode="before")
     @classmethod
-    def unwrap_data(cls, value):
-        """Flattens tracks for the sake of simplicity."""
-        if isinstance(value, dict) and "data" in value:
-            return value["data"]
-        return value
+    def _unwrap(cls, value):
+        return unwrap_data(value)
